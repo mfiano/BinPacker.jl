@@ -1,0 +1,7 @@
+name = "BinPacker"
+uuid = "861cb9c3-f70e-438f-a3f0-99158dd8674e"
+authors = ["Michael Fiano <mail@mfiano.net> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1.8"
