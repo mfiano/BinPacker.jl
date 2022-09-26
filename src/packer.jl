@@ -2,35 +2,45 @@ struct Packer{S <: SortingMetric, F <: FitnessMetric}
     width::Int
     height::Int
     free_space::Vector{Rect}
+    border::Int
+    padding::Int
     allow_rotations::Bool
     sorting_metric::S
     fitness_metric::F
 end
 
-function packer(w, h; allow_rotations=false, sorting_metric=:perimeter, fitness_metric=:area)
-    free_space = Rect[rect(w, h)]
+function packer(
+    w,
+    h;
+    border=0,
+    padding=0,
+    allow_rotations=false,
+    sorting_metric=:perimeter,
+    fitness_metric=:area
+)
+    free_space = Rect[rect(w - border, h - border, border, border)]
     sorting_metric = sorting_metric_value(Val(sorting_metric))
     fitness_metric = fitness_metric_value(Val(fitness_metric))
-    Packer(w, h, free_space, allow_rotations, sorting_metric, fitness_metric)
+    Packer(w, h, free_space, border, padding, allow_rotations, sorting_metric, fitness_metric)
 end
 
-function find_free_rect(packer, placed)
+function find_free_space(packer, rect)
     free_space = packer.free_space
     allow_rotations = packer.allow_rotations
     metric = packer.fitness_metric
     total_score = typemax(Int32)
     best = nothing
     for free ∈ free_space
-        if free.w ≥ placed.w && free.h ≥ placed.h
-            score = fitness(free, placed, metric)
+        if free.w ≥ rect.w && free.h ≥ rect.h
+            score = fitness(free, rect, metric)
             if score < total_score
                 best = free.x, free.y, false
                 total_score = score
             end
         end
         if allow_rotations
-            if free.w ≥ placed.h && free.h ≥ placed.w
-                score = fitness(free, placed, metric)
+            if free.w ≥ rect.h && free.h ≥ rect.w
+                score = fitness(free, rect, metric)
                 if score < total_score
                     best = free.x, free.y, true
                     total_score = score
@@ -39,26 +49,21 @@ function find_free_rect(packer, placed)
         end
     end
     if !isnothing(best)
-        x, y, rotated = best
-        if rotated
-            placed.w, placed.h, placed.rotated = placed.h, placed.w, true
-        end
-        placed.x, placed.y = x, y
-        placed
+        best
     else
         error("Cannot pack anymore rects")
     end
 end
 
-function partition_free_space(free_space, placed)
+function partition_free_space(free_space, new_rect)
     old = Rect[]
     new = Rect[]
     foreach(free_space) do r1
-        if !intersects(r1, placed, Adjacent())
+        if !intersects(r1, new_rect, Adjacent())
             push!(old, r1)
         else
-            if intersects(r1, placed, Overlap())
-                r2 = placed
+            if intersects(r1, new_rect, Overlap())
+                r2 = new_rect
                 r1.r > r2.x > r1.x && push!(new, rect(r2.x - r1.x, r1.h, r1.x, r1.y))
                 r1.r > r2.r > r1.x && push!(new, rect(r1.r - r2.r, r1.h, r2.r, r1.y))
                 r1.t > r2.y > r1.y && push!(new, rect(r1.w, r2.y - r1.y, r1.x, r1.y))
@@ -71,22 +76,22 @@ function partition_free_space(free_space, placed)
     old, new
 end
 
-function clean_free!(new)
+function clean_free_space!(free_space)
     i = 1
-    len = length(new)
-    while i ≤ len
+    len = length(free_space)
+    while i < len
         j = i + 1
-        x = new[i]
-        while j ≤ len
-            y = new[j]
+        x = free_space[i]
+        while j <= len
+            y = free_space[j]
             if contains(y, x)
-                deleteat!(new, i)
+                deleteat!(free_space, i)
                 i -= 1
                 len -= 1
                 break
             end
             if contains(x, y)
-                deleteat!(new, j)
+                deleteat!(free_space, j)
                 j -= 1
                 len -= 1
             end
@@ -97,23 +102,29 @@ function clean_free!(new)
     nothing
 end
 
-function prune_free_space!(free_space, placed)
-    old, new = partition_free_space(free_space, placed)
+function prune_free_space!(packer, rect)
+    free_space = packer.free_space
+    old, new = partition_free_space(free_space, rect)
     copy!(free_space, old)
-    clean_free!(new)
+    clean_free_space!(new)
     append!(free_space, new)
     nothing
 end
 
-@inline function place_rect(packer, rect)
-    placed = find_free_rect(packer, rect)
-    prune_free_space!(packer.free_space, placed)
-    placed
+@inline function place_rect!(packer, rect)
+    rect.w, rect.h = (rect.w, rect.h) .+ packer.padding
+    rect.x, rect.y, rotated = find_free_space(packer, rect)
+    if rotated
+        rect.w, rect.h, rect.rotated = rect.h, rect.w, true
+    end
+    prune_free_space!(packer, rect)
+    rect.w, rect.h = (rect.w, rect.h) .- packer.padding
+    rect
 end
 
 function pack(packer, rects)
     metric = packer.sorting_metric
     map(sort_rects(rects, metric)) do x
-        place_rect(packer, x)
+        place_rect!(packer, x)
     end
 end
