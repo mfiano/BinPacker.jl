@@ -20,7 +20,7 @@ struct SortByLongestEdge <: SortingMetric end
 @inline sorting_metric_value(::Val{:shortest_edge}) = SortByShortestEdge()
 @inline sorting_metric_value(::Val{:longest_edge}) = SortByLongestEdge()
 
-@inline sort_rects(rects, by::F; rev=true) where {F} = sort(rects, by=by, rev=rev)
+@inline sort_rects(rects, by::F; rev=true) where {F} = sort!(rects, by=by, rev=rev)
 @inline sort_rects(rects, ::SortByNothing) = rects
 @inline sort_rects(rects, ::SortByWidth) = sort_rects(rects, width)
 @inline sort_rects(rects, ::SortByHeight) = sort_rects(rects, height)
