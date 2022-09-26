@@ -30,13 +30,11 @@ struct SortByLongestEdge <: SortingMetric end
 @inline sort_rects(rects, ::SortByAspectRatio) = sort_rects(rects, aspect_ratio, rev=false)
 
 @inline function sort_rects(rects, ::SortByShortestEdge)
-    sort_rects(rects, longest_edge)
-    sort_rects(rects, shortest_edge)
+    sort_rects(sort_rects(rects, longest_edge), shortest_edge)
 end
 
 @inline function sort_rects(rects, ::SortByLongestEdge)
-    sort_rects(rects, shortest_edge)
-    sort_rects(rects, longest_edge)
+    sort_rects(sort_rects(rects, shortest_edge), longest_edge)
 end
 
 abstract type FitnessMetric end

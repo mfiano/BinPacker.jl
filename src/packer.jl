@@ -1,42 +1,49 @@
-struct Packer{S <: SortingMetric, F <: FitnessMetric}
+mutable struct Packer{S <: SortingMetric, F <: FitnessMetric}
     width::Int
     height::Int
     free_space::Vector{Rect}
     border::Int
     padding::Int
     pot::Bool
-    allow_rotations::Bool
-    sorting_metric::S
-    fitness_metric::F
+    rotate::Bool
+    sort_by::S
+    fit_by::F
 end
 
 function packer(
-    w,
-    h;
+    width,
+    height;
     border=0,
     padding=0,
     pot=false,
-    allow_rotations=false,
-    sorting_metric=:perimeter,
-    fitness_metric=:area
+    rotate=false,
+    sort_by=:perimeter,
+    fit_by=:area
 )
     @assert border ≥ 0
     @assert padding ≥ 0
-    if pot
-        w, h = nextpow.(2, (w, h))
+    sort_by = sorting_metric_value(Val(sort_by))
+    fit_by = fitness_metric_value(Val(fit_by))
+    packer = Packer(width, height, Rect[], border, padding, pot, rotate, sort_by, fit_by)
+    initialize_free_space!(packer)
+    packer
+end
+
+function initialize_free_space!(packer)
+    if packer.pot
+        packer.width, packer.height = nextpow.(2, (packer.width, packer.height))
     end
-    free_size = (w, h) .- border
+    border = packer.border
+    free_size = (packer.width, packer.height) .- border
     free_origin = (border + 1, border + 1)
-    free_space = Rect[rect(free_size..., free_origin...)]
-    sorting_metric = sorting_metric_value(Val(sorting_metric))
-    fitness_metric = fitness_metric_value(Val(fitness_metric))
-    Packer(w, h, free_space, border, padding, pot, allow_rotations, sorting_metric, fitness_metric)
+    push!(packer.free_space, rect(free_size..., free_origin...))
+    nothing
 end
 
 function find_free_space(packer, rect)
     free_space = packer.free_space
-    allow_rotations = packer.allow_rotations
-    metric = packer.fitness_metric
+    rotate = packer.rotate
+    metric = packer.fit_by
     total_score = typemax(Int32)
     best = nothing
     for free ∈ free_space
@@ -47,7 +54,7 @@ function find_free_space(packer, rect)
                 total_score = score
             end
         end
-        if allow_rotations
+        if rotate
             if free.w ≥ rect.h && free.h ≥ rect.w
                 score = fitness(free, rect, metric)
                 if score < total_score
@@ -70,16 +77,14 @@ function partition_free_space(free_space, new_rect)
     foreach(free_space) do r1
         if !intersects(r1, new_rect, Adjacent())
             push!(old, r1)
+        elseif intersects(r1, new_rect, Overlap())
+            r2 = new_rect
+            r1.r > r2.x > r1.x && push!(new, rect(r2.x - r1.x, r1.h, r1.x, r1.y))
+            r1.r > r2.r > r1.x && push!(new, rect(r1.r - r2.r, r1.h, r2.r, r1.y))
+            r1.t > r2.y > r1.y && push!(new, rect(r1.w, r2.y - r1.y, r1.x, r1.y))
+            r1.t > r2.t > r1.y && push!(new, rect(r1.w, r1.t - r2.t, r1.x, r2.t))
         else
-            if intersects(r1, new_rect, Overlap())
-                r2 = new_rect
-                r1.r > r2.x > r1.x && push!(new, rect(r2.x - r1.x, r1.h, r1.x, r1.y))
-                r1.r > r2.r > r1.x && push!(new, rect(r1.r - r2.r, r1.h, r2.r, r1.y))
-                r1.t > r2.y > r1.y && push!(new, rect(r1.w, r2.y - r1.y, r1.x, r1.y))
-                r1.t > r2.t > r1.y && push!(new, rect(r1.w, r1.t - r2.t, r1.x, r2.t))
-            else
-                push!(new, r1)
-            end
+            push!(new, r1)
         end
     end
     old, new
@@ -132,7 +137,7 @@ end
 end
 
 function pack(packer, rects)
-    metric = packer.sorting_metric
+    metric = packer.sort_by
     map(sort_rects(rects, metric)) do x
         place_rect!(packer, x)
     end
