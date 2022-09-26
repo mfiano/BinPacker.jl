@@ -4,6 +4,7 @@ struct Packer{S <: SortingMetric, F <: FitnessMetric}
     free_space::Vector{Rect}
     border::Int
     padding::Int
+    pot::Bool
     allow_rotations::Bool
     sorting_metric::S
     fitness_metric::F
@@ -14,14 +15,22 @@ function packer(
     h;
     border=0,
     padding=0,
+    pot=false,
     allow_rotations=false,
     sorting_metric=:perimeter,
     fitness_metric=:area
 )
-    free_space = Rect[rect(w - border, h - border, border, border)]
+    @assert border ≥ 0
+    @assert padding ≥ 0
+    if pot
+        w, h = nextpow.(2, (w, h))
+    end
+    free_size = (w, h) .- border
+    free_origin = (border + 1, border + 1)
+    free_space = Rect[rect(free_size..., free_origin...)]
     sorting_metric = sorting_metric_value(Val(sorting_metric))
     fitness_metric = fitness_metric_value(Val(fitness_metric))
-    Packer(w, h, free_space, border, padding, allow_rotations, sorting_metric, fitness_metric)
+    Packer(w, h, free_space, border, padding, pot, allow_rotations, sorting_metric, fitness_metric)
 end
 
 function find_free_space(packer, rect)
