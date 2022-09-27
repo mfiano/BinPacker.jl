@@ -6,7 +6,8 @@ mutable struct Rect
     rotated::Bool
 end
 
-@inline rect(w, h, x=1, y=1; rotated=false) = Rect(w, h, x, y, rotated)
+@inline _make_rect(w, h, x, y) = Rect(w, h, x, y, false)
+@inline make_rect(w, h) = _make_rect(w, h, 1, 1)
 
 @inline function Base.getproperty(r::Rect, name::Symbol)
     if name ≡ :l

@@ -10,15 +10,15 @@ struct SortByAspectRatio <: SortingMetric end
 struct SortByShortestEdge <: SortingMetric end
 struct SortByLongestEdge <: SortingMetric end
 
-@inline sorting_metric_value(::Val{:none}) = SortByNothing()
-@inline sorting_metric_value(::Val{:width}) = SortByWidth()
-@inline sorting_metric_value(::Val{:height}) = SortByHeight()
-@inline sorting_metric_value(::Val{:perimeter}) = SortByPerimeter()
-@inline sorting_metric_value(::Val{:area}) = SortByArea()
-@inline sorting_metric_value(::Val{:edge_difference}) = SortByEdgeDifference()
-@inline sorting_metric_value(::Val{:aspect_ratio}) = SortByAspectRatio()
-@inline sorting_metric_value(::Val{:shortest_edge}) = SortByShortestEdge()
-@inline sorting_metric_value(::Val{:longest_edge}) = SortByLongestEdge()
+sorting_metric_value(::Val{:none}) = SortByNothing()
+sorting_metric_value(::Val{:width}) = SortByWidth()
+sorting_metric_value(::Val{:height}) = SortByHeight()
+sorting_metric_value(::Val{:perimeter}) = SortByPerimeter()
+sorting_metric_value(::Val{:area}) = SortByArea()
+sorting_metric_value(::Val{:edge_difference}) = SortByEdgeDifference()
+sorting_metric_value(::Val{:aspect_ratio}) = SortByAspectRatio()
+sorting_metric_value(::Val{:shortest_edge}) = SortByShortestEdge()
+sorting_metric_value(::Val{:longest_edge}) = SortByLongestEdge()
 
 @inline sort_rects(rects, by::F; rev=true) where {F} = sort!(rects, by=by, rev=rev)
 @inline sort_rects(rects, ::SortByNothing) = rects
@@ -42,5 +42,13 @@ abstract type FitnessMetric end
 struct EdgeFit <: FitnessMetric end
 struct AreaFit <: FitnessMetric end
 
-@inline fitness_metric_value(::Val{:edge}) = EdgeFit()
-@inline fitness_metric_value(::Val{:area}) = AreaFit()
+fitness_metric_value(::Val{:edge}) = EdgeFit()
+fitness_metric_value(::Val{:area}) = AreaFit()
+
+abstract type BinSelectionMethod end
+
+struct SelectFirstFit <: BinSelectionMethod end
+struct SelectBestFit <: BinSelectionMethod end
+
+@inline bin_selection_value(::Val{:first_fit}) = SelectFirstFit()
+@inline bin_selection_value(::Val{:best_fit}) = SelectBestFit()

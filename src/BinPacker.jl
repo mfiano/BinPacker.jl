@@ -1,6 +1,6 @@
 module BinPacker
 
-export add_bin!, make_bin, packer, pack, rect
+export add_bin!, make_bin, make_packer, make_rect, pack
 
 include("metrics.jl")
 include("rect.jl")
