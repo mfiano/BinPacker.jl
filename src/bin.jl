@@ -41,7 +41,9 @@ function find_free_space(bin::Bin, rect)
         end
         if rotate
             if free.w ≥ target.h && free.h ≥ target.w
+                target.w, target.h = target.h, target.w
                 score = fitness(free, target, fit_by)
+                target.h, target.w = target.w, target.h
                 if score < total_score
                     best = free.x, free.y, true
                     total_score = score
