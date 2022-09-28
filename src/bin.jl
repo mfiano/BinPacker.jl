@@ -6,7 +6,6 @@ mutable struct Bin{F <: FitnessMetric}
     rects::Vector{Rect}
     padding::Int
     border::Int
-    pot::Bool
     rotate::Bool
     fit_by::F
 end
@@ -19,15 +18,12 @@ function Base.show(io::IO, obj::Bin)
     print(io, "$width×$height $type(:rects => $rect_count, :efficiency => $efficiency%)")
 end
 
-function make_bin(width, height; padding=0, border=0, pot=false, rotate=false, fit_by=:area)
-    if pot
-        width, height = nextpow.(2, (width, height))
-    end
+function make_bin(width, height; padding=0, border=0, rotate=false, fit_by=:area)
     free_size = (width, height) .- (2border - padding)
     free_origin = (border + 1, border + 1)
     free = _make_rect(free_size..., free_origin...)
     fit_by = fitness_metric_value(Val(fit_by))
-    Bin(width, height, Rect[free], make_rect(0, 0), Rect[], padding, border, pot, rotate, fit_by)
+    Bin(width, height, Rect[free], make_rect(0, 0), Rect[], padding, border, rotate, fit_by)
 end
 
 function find_free_space(bin::Bin, rect)
