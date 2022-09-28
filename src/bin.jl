@@ -127,7 +127,7 @@ end
 function packing_efficiency(bin::Bin)
     border = bin.border
     padding = bin.padding
-    rect_area = mapreduce(x -> (x.w, x.h) .+ padding |> prod, +, bin.rects)
+    rect_area = mapreduce(x -> (x.w, x.h) .+ padding |> prod, +, bin.rects, init=0)
     free_area = (bin.width, bin.height) .- (2border - padding) |> prod
     rect_area / free_area
 end
