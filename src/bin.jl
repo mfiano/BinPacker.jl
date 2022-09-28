@@ -15,8 +15,8 @@ function Base.show(io::IO, obj::Bin)
     (; width, height) = obj
     type = obj |> typeof
     rect_count = obj.rects |> length
-    efficiency = packing_efficiency(obj)
-    print(io, "$width×$height $type(:rects => $rect_count, :efficiency => $efficiency)")
+    efficiency = round(packing_efficiency(obj) * 100, digits=2)
+    print(io, "$width×$height $type(:rects => $rect_count, :efficiency => $efficiency%)")
 end
 
 function make_bin(width, height; padding=0, border=0, pot=false, rotate=false, fit_by=:area)
@@ -131,7 +131,7 @@ end
 function packing_efficiency(bin::Bin)
     border = bin.border
     padding = bin.padding
-    rect_area = mapreduce(x -> (x.w + padding) * (x.h + padding), +, bin.rects)
-    w, h = (bin.width, bin.height) .- (2border - padding)
-    rect_area / (w * h)
+    rect_area = mapreduce(x -> (x.w, x.h) .+ padding |> prod, +, bin.rects)
+    free_area = (bin.width, bin.height) .- (2border - padding) |> prod
+    rect_area / free_area
 end
