@@ -11,7 +11,7 @@ function make_packer(; sort_by=:perimeter, select_by=:first_fit)
 end
 
 add_bin!(packer::Packer, bin::Bin) = push!(packer.bins, bin)
-add_bin!(packer::Packer) = add_bin!(packer, make_bin(2048, 2048))
+add_bin!(packer::Packer, w, h) = add_bin!(packer, make_bin(w, h))
 
 function select_bin(packer::Packer, rect)
     index = select_bin(packer, packer.select_by, rect)
