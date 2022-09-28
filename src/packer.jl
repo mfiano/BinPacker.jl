@@ -4,6 +4,13 @@ struct Packer{SM <: SortingMetric, BS <: BinSelectionMethod}
     select_by::BS
 end
 
+function Base.show(io::IO, obj::Packer)
+    type = obj |> typeof
+    rect_count = mapreduce(x -> x.rects |> length, +, obj.bins)
+    bin_count = obj.bins |> length
+    print(io, "$type(:rects => $rect_count, :bins => $bin_count)")
+end
+
 function make_packer(; sort_by=:perimeter, select_by=:first_fit)
     sort_by = sorting_metric_value(Val(sort_by))
     select_by = bin_selection_value(Val(select_by))
