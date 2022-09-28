@@ -1,6 +1,7 @@
 abstract type SortingMetric end
 
 struct SortByNothing <: SortingMetric end
+struct SortByRandom <: SortingMetric end
 struct SortByWidth <: SortingMetric end
 struct SortByHeight <: SortingMetric end
 struct SortByPerimeter <: SortingMetric end
@@ -11,6 +12,7 @@ struct SortByShortestEdge <: SortingMetric end
 struct SortByLongestEdge <: SortingMetric end
 
 sorting_metric_value(::Val{:none}) = SortByNothing()
+sorting_metric_value(::Val{:random}) = SortByRandom()
 sorting_metric_value(::Val{:width}) = SortByWidth()
 sorting_metric_value(::Val{:height}) = SortByHeight()
 sorting_metric_value(::Val{:perimeter}) = SortByPerimeter()
@@ -22,6 +24,7 @@ sorting_metric_value(::Val{:longest_edge}) = SortByLongestEdge()
 
 @inline sort_rects(rects, by::F; rev=true) where {F} = sort!(rects, by=by, rev=rev)
 @inline sort_rects(rects, ::SortByNothing) = rects
+@inline sort_rects(rects, ::SortByRandom) = shuffle!(rects)
 @inline sort_rects(rects, ::SortByWidth) = sort_rects(rects, width)
 @inline sort_rects(rects, ::SortByHeight) = sort_rects(rects, height)
 @inline sort_rects(rects, ::SortByPerimeter) = sort_rects(rects, perimeter)
