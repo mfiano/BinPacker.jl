@@ -104,11 +104,31 @@ function clean_free_space!(::Bin, free_space)
 end
 
 function prune_free_space!(bin::Bin)
-    free_space = bin.free_space
     old, new = partition_free_space(bin)
-    copy!(free_space, old)
-    clean_free_space!(bin, new)
-    append!(free_space, new)
+    copy!(bin.free_space, old)
+    i = 1
+    len = length(new)
+    while i < len
+        j = i + 1
+        x = new[i]
+        while j <= len
+            y = new[j]
+            if contains(y, x)
+                deleteat!(new, i)
+                i -= 1
+                len -= 1
+                break
+            end
+            if contains(x, y)
+                deleteat!(new, j)
+                j -= 1
+                len -= 1
+            end
+            j += 1
+        end
+        i += 1
+    end
+    append!(bin.free_space, new)
     nothing
 end
 
