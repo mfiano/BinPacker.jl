@@ -6,6 +6,14 @@ mutable struct Rect
     rotated::Bool
 end
 
+function Base.show(io::IO, obj::Rect)
+    (; w, h, x, y) = obj
+    type = obj |> typeof
+    print(io, "$w×$h $type(:x => $x, :y => $y)")
+end
+
+@inline Base.eachindex(rect::Rect) = Iterators.product(rect.l:rect.r-1, rect.b:rect.t-1)
+
 @inline _make_rect(w, h, x, y) = Rect(w, h, x, y, false)
 @inline make_rect(w, h) = _make_rect(w, h, 1, 1)
 
