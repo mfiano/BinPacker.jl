@@ -21,8 +21,7 @@ end
 
 function select_bin(packer::Packer, ::SelectFirstFit, rect)
     index = findfirst(packer.bins) do bin
-        padded_rect = make_rect(rect.w + bin.padding, rect.h + bin.padding)
-        fits, _ = find_free_space(bin, padded_rect)
+        fits, _ = find_free_space(bin, rect)
         fits
     end
     !isnothing(index) ? index : 0
@@ -32,8 +31,7 @@ function select_bin(packer::Packer, ::SelectBestFit, rect)
     best = typemax(Int32)
     index = 0
     for (i, bin) ∈ pairs(packer.bins)
-        padded_rect = make_rect(rect.w + bin.padding, rect.h + bin.padding)
-        fits, score = find_free_space(bin, padded_rect)
+        fits, score = find_free_space(bin, rect)
         if fits && score < best
             best = score
             index = i

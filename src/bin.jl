@@ -28,17 +28,20 @@ function find_free_space(bin::Bin, rect)
     fit_by = bin.fit_by
     total_score = typemax(Int32)
     best = nothing
+    target = bin.target
+    target.w, target.h = (rect.w, rect.h) .+ bin.padding
+    target.x, target.y = rect.x, rect.y
     for free ∈ free_space
-        if free.w ≥ rect.w && free.h ≥ rect.h
-            score = fitness(free, rect, fit_by)
+        if free.w ≥ target.w && free.h ≥ target.h
+            score = fitness(free, target, fit_by)
             if score < total_score
                 best = free.x, free.y, false
                 total_score = score
             end
         end
         if rotate
-            if free.w ≥ rect.h && free.h ≥ rect.w
-                score = fitness(free, rect, fit_by)
+            if free.w ≥ target.h && free.h ≥ target.w
+                score = fitness(free, target, fit_by)
                 if score < total_score
                     best = free.x, free.y, true
                     total_score = score
@@ -47,7 +50,6 @@ function find_free_space(bin::Bin, rect)
         end
     end
     if !isnothing(best)
-        target = bin.target
         target.x, target.y, target.rotated = best
         true, total_score
     else
@@ -55,14 +57,15 @@ function find_free_space(bin::Bin, rect)
     end
 end
 
-function partition_free_space(bin::Bin, new_rect)
+function partition_free_space(bin::Bin)
     old = Rect[]
     new = Rect[]
+    rect = bin.target
     foreach(bin.free_space) do r1
-        if !intersects(r1, new_rect, Adjacent())
+        if !intersects(r1, rect, Adjacent())
             push!(old, r1)
-        elseif intersects(r1, new_rect, Overlap())
-            r2 = new_rect
+        elseif intersects(r1, rect, Overlap())
+            r2 = rect
             r1.r > r2.x > r1.x && push!(new, _make_rect(r2.x - r1.x, r1.h, r1.x, r1.y))
             r1.r > r2.r > r1.x && push!(new, _make_rect(r1.r - r2.r, r1.h, r2.r, r1.y))
             r1.t > r2.y > r1.y && push!(new, _make_rect(r1.w, r2.y - r1.y, r1.x, r1.y))
@@ -100,9 +103,9 @@ function clean_free_space!(::Bin, free_space)
     nothing
 end
 
-function prune_free_space!(bin::Bin, rect)
+function prune_free_space!(bin::Bin)
     free_space = bin.free_space
-    old, new = partition_free_space(bin, rect)
+    old, new = partition_free_space(bin)
     copy!(free_space, old)
     clean_free_space!(bin, new)
     append!(free_space, new)
@@ -111,12 +114,12 @@ end
 
 @inline function place_rect!(bin::Bin, rect)
     target = bin.target
-    rect.x, rect.y, rect.rotated = target.x, target.y, target.rotated
-    if rect.rotated
+    if target.rotated
+        target.w, target.h = target.h, target.w
         rect.w, rect.h = rect.h, rect.w
     end
-    padded_rect = _make_rect(rect.w + bin.padding, rect.h + bin.padding, rect.x, rect.y)
-    prune_free_space!(bin, padded_rect)
+    rect.x, rect.y, rect.rotated = target.x, target.y, target.rotated
+    prune_free_space!(bin)
     push!(bin.rects, rect)
     nothing
 end
