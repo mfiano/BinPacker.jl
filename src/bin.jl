@@ -11,6 +11,14 @@ mutable struct Bin{F <: FitnessMetric}
     fit_by::F
 end
 
+function Base.show(io::IO, obj::Bin)
+    (; width, height) = obj
+    type = obj |> typeof
+    rect_count = obj.rects |> length
+    efficiency = packing_efficiency(obj)
+    print(io, "$width×$height $type(:rects => $rect_count, :efficiency => $efficiency)")
+end
+
 function make_bin(width, height; padding=0, border=0, pot=false, rotate=false, fit_by=:area)
     if pot
         width, height = nextpow.(2, (width, height))
@@ -118,4 +126,12 @@ end
     prune_free_space!(bin)
     push!(bin.rects, rect)
     nothing
+end
+
+function packing_efficiency(bin::Bin)
+    border = bin.border
+    padding = bin.padding
+    rect_area = mapreduce(x -> (x.w + padding) * (x.h + padding), +, bin.rects)
+    w, h = (bin.width, bin.height) .- (2border - padding)
+    rect_area / (w * h)
 end
