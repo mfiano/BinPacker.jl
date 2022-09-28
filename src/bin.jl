@@ -15,7 +15,7 @@ function make_bin(width, height; padding=0, border=0, pot=false, rotate=false, f
     if pot
         width, height = nextpow.(2, (width, height))
     end
-    free_size = (width, height) .- border
+    free_size = (width, height) .- (2border - padding)
     free_origin = (border + 1, border + 1)
     free = _make_rect(free_size..., free_origin...)
     fit_by = fitness_metric_value(Val(fit_by))
