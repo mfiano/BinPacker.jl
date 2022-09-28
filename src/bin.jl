@@ -79,32 +79,6 @@ function partition_free_space(bin::Bin)
     old, new
 end
 
-function clean_free_space!(::Bin, free_space)
-    i = 1
-    len = length(free_space)
-    while i < len
-        j = i + 1
-        x = free_space[i]
-        while j <= len
-            y = free_space[j]
-            if contains(y, x)
-                deleteat!(free_space, i)
-                i -= 1
-                len -= 1
-                break
-            end
-            if contains(x, y)
-                deleteat!(free_space, j)
-                j -= 1
-                len -= 1
-            end
-            j += 1
-        end
-        i += 1
-    end
-    nothing
-end
-
 function prune_free_space!(bin::Bin)
     old, new = partition_free_space(bin)
     copy!(bin.free_space, old)
