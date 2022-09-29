@@ -5,7 +5,7 @@ import BinPacker: Rect, width, height, perimeter, area, shortest_edge, longest_e
 import BinPacker: edge_difference, aspect_ratio, packing_efficiency
 import BinPacker: contains, intersects, Overlap, Adjacent, fitness, EdgeFit, AreaFit
 import BinPacker: SortByPerimeter, SortByLongestEdge, SelectFirstFit, SelectBestFit
-import BinPacker: Bin, Packer, add_bin!, pack
+import BinPacker: Bin, Packer, pack
 
 function check_intersections(bin)
     for (r1, r2) in combinations(bin.rects, 2)
@@ -129,21 +129,21 @@ end
 
 @testset "Packer" begin
     @testset "Properties" begin
-        p1 = Packer()
-        p2 = Packer(sort_by=:longest_edge, select_by=:best_fit)
-        @test isempty(p1.bins)
+        b = Bin(1024, 1024)
+        p1 = Packer([b])
+        p2 = Packer([b], sort_by=:longest_edge, select_by=:best_fit)
+        @test p1.bins |> length == 1
         @test p1.sort_by == SortByPerimeter()
         @test p1.select_by == SelectFirstFit()
-        @test isempty(p2.bins)
+        @test p2.bins |> length == 1
         @test p2.sort_by == SortByLongestEdge()
         @test p2.select_by == SelectBestFit()
     end
     @testset "pack: default packer, single area-fit bin" begin
         for _ in 1:100
-            p = Packer()
             b = Bin(1024, 1024, fit_by=:area)
+            p = Packer([b])
             bin_rect = b.free_space[1]
-            add_bin!(p, b)
             rects = [Rect(rand(2:80), rand(2:80)) for _ in 1:250]
             pack(p, rects)
             # check that bin has a non-zero packing efficiency
@@ -158,14 +158,13 @@ end
     end
     @testset "pack: default packer, single area-fit bin with border" begin
         for _ in 1:100
-            p = Packer()
             b = Bin(1024, 1024, border=8, fit_by=:area)
+            p = Packer([b])
             bin_rect = b.free_space[1]
             left_border1 = Rect(8, 1024, 1, 1)
             left_border2 = Rect(9, 1024, 1, 1)
             bottom_border1 = Rect(1024, 8, 1, 1)
             bottom_border2 = Rect(1024, 9, 1, 1)
-            add_bin!(p, b)
             rects = [Rect(rand(2:80), rand(2:80)) for _ in 1:250]
             pack(p, rects)
             # check that bin has a non-zero packing efficiency
@@ -186,10 +185,9 @@ end
     end
     @testset "pack: default packer, single edge-fit bin" begin
         for _ in 1:100
-            p = Packer()
             b = Bin(1024, 1024, fit_by=:edge)
+            p = Packer([b])
             bin_rect = b.free_space[1]
-            add_bin!(p, b)
             rects = [Rect(rand(2:80), rand(2:80)) for _ in 1:250]
             pack(p, rects)
             # check that bin has a non-zero packing efficiency
@@ -204,13 +202,11 @@ end
     end
     @testset "pack: first-fit packer, two area-fit bins" begin
         for _ in 1:100
-            p = Packer(select_by=:first_fit)
             b1 = Bin(512, 512, fit_by=:area)
             b2 = Bin(512, 512, fit_by=:area)
+            p = Packer([b1,b2], select_by=:first_fit)
             bin_rect1 = b1.free_space[1]
             bin_rect2 = b2.free_space[1]
-            add_bin!(p, b1)
-            add_bin!(p, b2)
             rects = [Rect(rand(2:80), rand(2:80)) for _ in 1:200]
             pack(p, rects)
             # check that each bin has a non-zero packing efficiency
@@ -229,13 +225,11 @@ end
     end
     @testset "pack: best-fit packer, two edge-fit bins" begin
         for _ in 1:100
-            p = Packer(select_by=:best_fit)
             b1 = Bin(512, 512, fit_by=:edge)
             b2 = Bin(512, 512, fit_by=:edge)
+            p = Packer([b1, b2], select_by=:best_fit)
             bin_rect1 = b1.free_space[1]
             bin_rect2 = b2.free_space[1]
-            add_bin!(p, b1)
-            add_bin!(p, b2)
             rects = [Rect(rand(2:80), rand(2:80)) for _ in 1:200]
             pack(p, rects)
             # check that each bin has a non-zero packing efficiency

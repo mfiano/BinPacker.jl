@@ -1,4 +1,4 @@
-mutable struct Bin{F <: FitnessAlgorithm}
+struct Bin{F <: FitnessAlgorithm}
     width::Int
     height::Int
     free_space::Vector{Rect}

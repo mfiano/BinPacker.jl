@@ -1,24 +1,25 @@
-struct Packer{SM <: SortingAlgorithm, BS <: BinSelectionAlgorithm}
-    bins::Vector{Bin}
-    sort_by::SM
-    select_by::BS
+struct Packer{F <: FitnessAlgorithm, S <: SortingAlgorithm, B <: BinSelectionAlgorithm}
+    bins::Vector{Bin{F}}
+    sort_by::S
+    select_by::B
 end
 
 function Base.show(io::IO, obj::Packer)
     type = obj |> typeof
-    rect_count = mapreduce(x -> x.rects |> length, +, obj.bins)
+    rect_count = mapreduce(x -> x.rects |> length, +, obj.bins, init=0)
     bin_count = obj.bins |> length
     print(io, "$type(:rects => $rect_count, :bins => $bin_count)")
 end
 
-function Packer(; sort_by=:perimeter, select_by=:first_fit)
+function Packer(
+    bins::Vector{Bin{F}};
+    sort_by=:perimeter,
+    select_by=:first_fit
+) where {F <: FitnessAlgorithm}
     sort_by = sorting_algorithm_value(Val(sort_by))
     select_by = bin_selection_algorithm_value(Val(select_by))
-    Packer(Bin[], sort_by, select_by)
+    Packer(bins, sort_by, select_by)
 end
-
-add_bin!(packer::Packer, bin::Bin) = push!(packer.bins, bin)
-add_bin!(packer::Packer, w, h) = add_bin!(packer, Bin(w, h))
 
 function select_bin(packer::Packer, r::Rect)
     index = select_bin(packer, r, packer.select_by)
