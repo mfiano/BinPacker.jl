@@ -1,4 +1,4 @@
-mutable struct Bin{F <: FitnessMetric}
+mutable struct Bin{F <: FitnessAlgorithm}
     width::Int
     height::Int
     free_space::Vector{Rect}
@@ -18,11 +18,11 @@ function Base.show(io::IO, obj::Bin)
     print(io, "$width×$height $type(:rects => $rect_count, :efficiency => $efficiency%)")
 end
 
-function make_bin(width, height; padding=0, border=0, rotate=false, fit_by=:area)
+function Bin(width, height; padding=0, border=0, rotate=false, fit_by=:area)
     free_size = (width, height) .- (2border - padding)
     free_origin = (border + 1, border + 1)
     free = Rect(free_size..., free_origin...)
-    fit_by = fitness_metric_value(Val(fit_by))
+    fit_by = fitness_algorithm_value(Val(fit_by))
     Bin(width, height, Rect[free], Rect(0, 0), Rect[], padding, border, rotate, fit_by)
 end
 

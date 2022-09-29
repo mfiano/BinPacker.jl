@@ -2,9 +2,9 @@ module BinPacker
 
 using Random: shuffle!
 
-export add_bin!, make_bin, make_packer, Rect, pack
+export add_bin!, Bin, Packer, Rect, pack
 
-include("metrics.jl")
+include("algorithm_types.jl")
 include("rect.jl")
 include("compare.jl")
 include("bin.jl")
