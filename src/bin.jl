@@ -21,20 +21,20 @@ end
 function make_bin(width, height; padding=0, border=0, rotate=false, fit_by=:area)
     free_size = (width, height) .- (2border - padding)
     free_origin = (border + 1, border + 1)
-    free = _make_rect(free_size..., free_origin...)
+    free = Rect(free_size..., free_origin...)
     fit_by = fitness_metric_value(Val(fit_by))
-    Bin(width, height, Rect[free], make_rect(0, 0), Rect[], padding, border, rotate, fit_by)
+    Bin(width, height, Rect[free], Rect(0, 0), Rect[], padding, border, rotate, fit_by)
 end
 
-function find_free_space(bin::Bin, rect)
+function find_free_space(bin::Bin, r::Rect)
     free_space = bin.free_space
     rotate = bin.rotate
     fit_by = bin.fit_by
     total_score = typemax(Int32)
     best = nothing
     target = bin.target
-    target.w, target.h = (rect.w, rect.h) .+ bin.padding
-    target.x, target.y = rect.x, rect.y
+    target.w, target.h = (r.w, r.h) .+ bin.padding
+    target.x, target.y = r.x, r.y
     for free ∈ free_space
         if free.w ≥ target.w && free.h ≥ target.h
             score = fitness(free, target, fit_by)
@@ -66,16 +66,15 @@ end
 function partition_free_space(bin::Bin)
     old = Rect[]
     new = Rect[]
-    rect = bin.target
+    r2 = bin.target
     foreach(bin.free_space) do r1
-        if !intersects(r1, rect, Adjacent())
+        if !intersects(r1, r2, Adjacent())
             push!(old, r1)
-        elseif intersects(r1, rect, Overlap())
-            r2 = rect
-            r1.r > r2.x > r1.x && push!(new, _make_rect(r2.x - r1.x, r1.h, r1.x, r1.y))
-            r1.r > r2.r > r1.x && push!(new, _make_rect(r1.r - r2.r, r1.h, r2.r, r1.y))
-            r1.t > r2.y > r1.y && push!(new, _make_rect(r1.w, r2.y - r1.y, r1.x, r1.y))
-            r1.t > r2.t > r1.y && push!(new, _make_rect(r1.w, r1.t - r2.t, r1.x, r2.t))
+        elseif intersects(r1, r2, Overlap())
+            r1.r > r2.x > r1.x && push!(new, Rect(r2.x - r1.x, r1.h, r1.x, r1.y))
+            r1.r > r2.r > r1.x && push!(new, Rect(r1.r - r2.r, r1.h, r2.r, r1.y))
+            r1.t > r2.y > r1.y && push!(new, Rect(r1.w, r2.y - r1.y, r1.x, r1.y))
+            r1.t > r2.t > r1.y && push!(new, Rect(r1.w, r1.t - r2.t, r1.x, r2.t))
         else
             push!(new, r1)
         end
@@ -112,15 +111,15 @@ function prune_free_space!(bin::Bin)
     nothing
 end
 
-@inline function place_rect!(bin::Bin, rect)
+@inline function place_rect!(bin::Bin, r::Rect)
     target = bin.target
     if target.rotated
         target.w, target.h = target.h, target.w
-        rect.w, rect.h = rect.h, rect.w
+        r.w, r.h = r.h, r.w
     end
-    rect.x, rect.y, rect.rotated = target.x, target.y, target.rotated
+    r.x, r.y, r.rotated = target.x, target.y, target.rotated
     prune_free_space!(bin)
-    push!(bin.rects, rect)
+    push!(bin.rects, r)
     nothing
 end
 

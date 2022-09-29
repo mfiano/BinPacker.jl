@@ -12,10 +12,7 @@ function Base.show(io::IO, obj::Rect)
     print(io, "$w×$h $type(:x => $x, :y => $y)")
 end
 
-@inline Base.eachindex(rect::Rect) = Iterators.product(rect.l:rect.r-1, rect.b:rect.t-1)
-
-@inline _make_rect(w, h, x, y) = Rect(w, h, x, y, false)
-@inline make_rect(w, h) = _make_rect(w, h, 1, 1)
+@inline Rect(w, h, x=1, y=1) = Rect(w, h, x, y, false)
 
 @inline function Base.getproperty(r::Rect, name::Symbol)
     if name ≡ :l
@@ -31,11 +28,13 @@ end
     end
 end
 
-@inline width(rect) = rect.w
-@inline height(rect) = rect.h
-@inline perimeter(rect) = 2rect.w + 2rect.h
-@inline area(rect) = rect.w * rect.h
-@inline shortest_edge(rect) = min(rect.w, rect.h)
-@inline longest_edge(rect) = max(rect.w, rect.h)
-@inline edge_difference(rect) = longest_edge(rect) - shortest_edge(rect)
-@inline aspect_ratio(rect) = longest_edge(rect) ÷ shortest_edge(rect)
+@inline Base.eachindex(r::Rect) = Iterators.product(r.l:r.r-1, r.b:r.t-1)
+
+@inline width(r::Rect) = r.w
+@inline height(r::Rect) = r.h
+@inline perimeter(r::Rect) = 2r.w + 2r.h
+@inline area(r::Rect) = r.w * r.h
+@inline shortest_edge(r::Rect) = min(r.w, r.h)
+@inline longest_edge(r::Rect) = max(r.w, r.h)
+@inline edge_difference(r::Rect) = longest_edge(r) - shortest_edge(r)
+@inline aspect_ratio(r::Rect) = longest_edge(r) // shortest_edge(r)

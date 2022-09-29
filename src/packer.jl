@@ -20,25 +20,25 @@ end
 add_bin!(packer::Packer, bin::Bin) = push!(packer.bins, bin)
 add_bin!(packer::Packer, w, h) = add_bin!(packer, make_bin(w, h))
 
-function select_bin(packer::Packer, rect)
-    index = select_bin(packer, packer.select_by, rect)
+function select_bin(packer::Packer, r::Rect)
+    index = select_bin(packer, r, packer.select_by)
     iszero(index) && error("Cannot pack anymore rects")
     packer.bins[index]
 end
 
-function select_bin(packer::Packer, ::SelectFirstFit, rect)
+function select_bin(packer::Packer, r::Rect, ::SelectFirstFit)
     index = findfirst(packer.bins) do bin
-        fits, _ = find_free_space(bin, rect)
+        fits, _ = find_free_space(bin, r)
         fits
     end
     !isnothing(index) ? index : 0
 end
 
-function select_bin(packer::Packer, ::SelectBestFit, rect)
+function select_bin(packer::Packer, r::Rect, ::SelectBestFit)
     best = typemax(Int32)
     index = 0
     for (i, bin) ∈ pairs(packer.bins)
-        fits, score = find_free_space(bin, rect)
+        fits, score = find_free_space(bin, r)
         if fits && score < best
             best = score
             index = i
