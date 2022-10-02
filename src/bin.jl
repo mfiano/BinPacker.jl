@@ -1,13 +1,51 @@
-struct Bin{F <: FitnessAlgorithm}
+struct BinOptions{F <: FitnessAlgorithm}
+    min_size::NTuple{2, Int}
+    max_size::NTuple{2, Int}
+    padding::Int
+    border::Int
+    rotate::Bool
+    resize_by::NTuple{2, Int}
+    pow2::Bool
+    square::Bool
+    fit_by::F
+end
+
+function BinOptions(
+    min_size,
+    max_size,
+    padding,
+    border,
+    rotate,
+    resize_by,
+    pow2,
+    square,
+    fit_by::Symbol
+)
+    fit_by = fitness_algorithm_value(Val(fit_by))
+    BinOptions(min_size, max_size, padding, border, rotate, resize_by, pow2, square, fit_by)
+end
+
+function BinOptions(;
+    min_size=(128, 128),
+    max_size=(4096, 4096),
+    padding=0,
+    border=0,
+    rotate=false,
+    resize_by=(2, 2),
+    pow2=false,
+    square=false,
+    fit_by=:area
+)
+    BinOptions(min_size, max_size, padding, border, rotate, resize_by, pow2, square, fit_by)
+end
+
+mutable struct Bin{F <: FitnessAlgorithm}
     width::Int
     height::Int
     free_space::Vector{Rect}
     target::Rect
     rects::Vector{Rect}
-    padding::Int
-    border::Int
-    rotate::Bool
-    fit_by::F
+    options::BinOptions{F}
 end
 
 function Base.show(io::IO, obj::Bin)
@@ -15,26 +53,37 @@ function Base.show(io::IO, obj::Bin)
     type = obj |> typeof
     rect_count = obj.rects |> length
     efficiency = round(packing_efficiency(obj) * 100, digits=2)
-    print(io, "$width×$height $type(:rects => $rect_count, :efficiency => $efficiency%)")
+    print(io, "$width×$height $type(:rects => $rect_count, :efficiency => $efficiency)")
 end
 
-function Bin(width, height; padding=0, border=0, rotate=false, fit_by=:area)
+function Bin(width, height, options)
+    border = options.border
+    padding = options.padding
     free_size = (width, height) .- (2border - padding)
     free_origin = (border + 1, border + 1)
     free = Rect(free_size..., free_origin...)
-    fit_by = fitness_algorithm_value(Val(fit_by))
-    Bin(width, height, Rect[free], Rect(0, 0), Rect[], padding, border, rotate, fit_by)
+    Bin(width, height, Rect[free], Rect(0, 0), Rect[], options)
 end
 
-function find_free_space(bin::Bin, r::Rect)
+@inline area(bin::Bin) = bin.width * bin.height
+
+@inline function rect(bin::Bin)
+    p = bin.options.padding
+    b = bin.options.border
+    size = (bin.width, bin.height) .- (2b - p)
+    origin = (b + 1, b + 1)
+    Rect(size..., origin...)
+end
+
+function find_free_space(bin::Bin, rect::Rect)
     free_space = bin.free_space
-    rotate = bin.rotate
-    fit_by = bin.fit_by
+    rotate = bin.options.rotate
+    fit_by = bin.options.fit_by
     total_score = typemax(Int32)
     best = nothing
     target = bin.target
-    target.w, target.h = (r.w, r.h) .+ bin.padding
-    target.x, target.y = r.x, r.y
+    target.w, target.h = (rect.w, rect.h) .+ bin.options.padding
+    target.x, target.y = rect.x, rect.y
     for free ∈ free_space
         if free.w ≥ target.w && free.h ≥ target.h
             score = fitness(free, target, fit_by)
@@ -82,24 +131,22 @@ function partition_free_space(bin::Bin)
     old, new
 end
 
-function prune_free_space!(bin::Bin)
-    old, new = partition_free_space(bin)
-    copy!(bin.free_space, old)
+function clean_free_space!(free_space)
     i = 1
-    len = length(new)
+    len = length(free_space)
     while i < len
         j = i + 1
-        x = new[i]
+        r1 = free_space[i]
         while j <= len
-            y = new[j]
-            if contains(y, x)
-                deleteat!(new, i)
+            r2 = free_space[j]
+            if contains(r2, r1)
+                deleteat!(free_space, i)
                 i -= 1
                 len -= 1
                 break
             end
-            if contains(x, y)
-                deleteat!(new, j)
+            if contains(r1, r2)
+                deleteat!(free_space, j)
                 j -= 1
                 len -= 1
             end
@@ -107,26 +154,83 @@ function prune_free_space!(bin::Bin)
         end
         i += 1
     end
+end
+
+function prune_free_space!(bin::Bin)
+    old, new = partition_free_space(bin)
+    copy!(bin.free_space, old)
+    clean_free_space!(new)
     append!(bin.free_space, new)
     nothing
 end
 
-@inline function place_rect!(bin::Bin, r::Rect)
+@inline function place_rect!(bin::Bin, rect::Rect)
     target = bin.target
     if target.rotated
         target.w, target.h = target.h, target.w
-        r.w, r.h = r.h, r.w
+        rect.w, rect.h = rect.h, rect.w
     end
-    r.x, r.y, r.rotated = target.x, target.y, target.rotated
+    rect.x, rect.y, rect.rotated = target.x, target.y, target.rotated
     prune_free_space!(bin)
-    push!(bin.rects, r)
+    push!(bin.rects, rect)
     nothing
 end
 
 function packing_efficiency(bin::Bin)
-    border = bin.border
-    padding = bin.padding
-    rect_area = mapreduce(x -> (x.w, x.h) .+ padding |> prod, +, bin.rects, init=0)
-    free_area = (bin.width, bin.height) .- (2border - padding) |> prod
-    rect_area / free_area
+    border = bin.options.border
+    padding = bin.options.padding
+    used_area = mapreduce(x -> (x.w, x.h) .+ padding |> prod, +, bin.rects, init=0)
+    total_area = (bin.width, bin.height) .- (2border - padding) |> prod
+    used_area / total_area
+end
+
+function resize_bin!(bin::Bin, rect::Rect)
+    p = bin.options.padding - 1
+    b = bin.options.border
+    max_width, max_height = bin.options.max_size
+    w = max(bin.width, rect.r - p + b)
+    h = max(bin.height, rect.t - p + b)
+    if bin.options.rotate
+        rw = max(bin.width, rect.x + rect.h - p + b)
+        rh = max(bin.height, rect.y + rect.w - p + b)
+        if rw * rh < w * h
+            w = rw
+            h = rh
+        end
+    end
+    w, h = ((a, b) -> a + mod(-a, b)).((w, h), bin.options.resize_by)
+    min_size = bin.options.min_size
+    w, h = max.((w, h), min_size)
+    if bin.options.pow2
+        w, h = nextpow.(2, (w, h))
+    end
+    if bin.options.square
+        w = h = max(w, h)
+    end
+    if w > max_width || h > max_height
+        return false
+    end
+    expand_free_space!(bin, w + p, h + p)
+    bin.width, bin.height = w, h
+    true
+end
+
+function expand_free_space!(bin::Bin, w, h)
+    p = bin.options.padding
+    b = bin.options.border
+    foreach(bin.free_space) do rect
+        if rect.r ≥ min(bin.width + p - b)
+            rect.w = w - rect.x - b
+        end
+        if rect.t ≥ min(bin.height + p - b)
+            rect.h = h - rect.y - b
+        end
+    end
+    push!(bin.free_space, Rect(w - bin.width - p, h - 2b, bin.width + p - b, b + 1))
+    push!(bin.free_space, Rect(w - 2b, h - bin.height - p, b + 1, bin.height + p - b))
+    filter!(bin.free_space) do rect
+        rect.w > 0 && rect.h > 0 && rect.x ≥ b && rect.y ≥ b
+    end
+    clean_free_space!(bin.free_space)
+    nothing
 end

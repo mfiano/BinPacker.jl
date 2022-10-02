@@ -14,27 +14,27 @@ end
 
 @inline Rect(w, h, x=1, y=1) = Rect(w, h, x, y, false)
 
-@inline function Base.getproperty(r::Rect, name::Symbol)
+@inline function Base.getproperty(rect::Rect, name::Symbol)
     if name ≡ :l
-        getfield(r, :x)
+        getfield(rect, :x)
     elseif name ≡ :r
-        getfield(r, :w) + getfield(r, :x)
+        getfield(rect, :w) + getfield(rect, :x)
     elseif name ≡ :t
-        getfield(r, :h) + getfield(r, :y)
+        getfield(rect, :h) + getfield(rect, :y)
     elseif name ≡ :b
-        getfield(r, :y)
+        getfield(rect, :y)
     else
-        getfield(r, name)
+        getfield(rect, name)
     end
 end
 
-@inline Base.eachindex(r::Rect) = Iterators.product(r.l:r.r-1, r.b:r.t-1)
+@inline Base.eachindex(rect::Rect) = Iterators.product(rect.l:rect.r-1, rect.b:rect.t-1)
 
-@inline width(r::Rect) = r.w
-@inline height(r::Rect) = r.h
-@inline perimeter(r::Rect) = 2r.w + 2r.h
-@inline area(r::Rect) = r.w * r.h
-@inline shortest_edge(r::Rect) = min(r.w, r.h)
-@inline longest_edge(r::Rect) = max(r.w, r.h)
-@inline edge_difference(r::Rect) = longest_edge(r) - shortest_edge(r)
-@inline aspect_ratio(r::Rect) = longest_edge(r) // shortest_edge(r)
+@inline width(rect::Rect) = rect.w
+@inline height(rect::Rect) = rect.h
+@inline perimeter(rect::Rect) = 2rect.w + 2rect.h
+@inline area(rect::Rect) = rect.w * rect.h
+@inline shortest_edge(rect::Rect) = min(rect.w, rect.h)
+@inline longest_edge(rect::Rect) = max(rect.w, rect.h)
+@inline edge_difference(rect::Rect) = longest_edge(rect) - shortest_edge(rect)
+@inline aspect_ratio(rect::Rect) = longest_edge(rect) // shortest_edge(rect)

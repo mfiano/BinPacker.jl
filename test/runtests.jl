@@ -5,11 +5,12 @@ import BinPacker: Rect, width, height, perimeter, area, shortest_edge, longest_e
 import BinPacker: edge_difference, aspect_ratio, packing_efficiency
 import BinPacker: contains, intersects, Overlap, Adjacent, fitness, EdgeFit, AreaFit
 import BinPacker: SortByPerimeter, SortByLongestEdge, SelectFirstFit, SelectBestFit
-import BinPacker: Bin, Packer, pack
+import BinPacker: Bin, BinOptions, Packer, pack, rect
 
 function check_intersections(bin)
-    for (r1, r2) in combinations(bin.rects, 2)
+    for (r1, r2) ∈ combinations(bin.rects, 2)
         if intersects(r1, r2)
+            println("r1: $r1, r2: $r2")
             return true
         end
     end
@@ -93,13 +94,15 @@ end
 end
 
 @testset "Bin" begin
-    b1 = Bin(2048, 1024)
-    b2 = Bin(1024, 2048, padding=4, border=8, rotate=true, fit_by=:edge)
+    bo1 = BinOptions()
+    bo2 = BinOptions(padding=4, border=8, rotate=true, fit_by=:edge)
+    b1 = Bin(2048, 1024, bo1)
+    b2 = Bin(1024, 2048, bo2)
     @testset "Properties" begin
         @test b1.width == 2048
         @test b1.height == 1024
-        @test b1.padding == 0
-        @test b1.border == 0
+        @test b1.options.padding == 0
+        @test b1.options.border == 0
         @test b1.free_space |> length == 1
         @test first(b1.free_space).w == 2048
         @test first(b1.free_space).h == 1024
@@ -107,13 +110,13 @@ end
         @test first(b1.free_space).y == 1
         @test b1.target isa Rect
         @test b1.rects |> isempty
-        @test b1.rotate == false
-        @test b1.fit_by == AreaFit()
+        @test b1.options.rotate == false
+        @test b1.options.fit_by == AreaFit()
         @test packing_efficiency(b1) == 0.0
         @test b2.width == 1024
         @test b2.height == 2048
-        @test b2.padding == 4
-        @test b2.border == 8
+        @test b2.options.padding == 4
+        @test b2.options.border == 8
         @test b2.free_space |> length == 1
         @test first(b2.free_space).w == 1012
         @test first(b2.free_space).h == 2036
@@ -121,17 +124,16 @@ end
         @test first(b2.free_space).y == 9
         @test b2.target isa Rect
         @test b2.rects |> isempty
-        @test b2.rotate == true
-        @test b2.fit_by == EdgeFit()
+        @test b2.options.rotate == true
+        @test b2.options.fit_by == EdgeFit()
         @test packing_efficiency(b2) == 0.0
     end
 end
 
 @testset "Packer" begin
     @testset "Properties" begin
-        b = Bin(1024, 1024)
-        p1 = Packer([b])
-        p2 = Packer([b], sort_by=:longest_edge, select_by=:best_fit)
+        p1 = Packer()
+        p2 = Packer(max_size=(1024, 1024), sort_by=:longest_edge, select_by=:best_fit)
         @test p1.bins |> length == 1
         @test p1.sort_by == SortByPerimeter()
         @test p1.select_by == SelectFirstFit()
@@ -139,111 +141,118 @@ end
         @test p2.sort_by == SortByLongestEdge()
         @test p2.select_by == SelectBestFit()
     end
-    @testset "pack: default packer, single area-fit bin" begin
-        for _ in 1:100
-            b = Bin(1024, 1024, fit_by=:area)
-            p = Packer([b])
-            bin_rect = b.free_space[1]
-            rects = [Rect(rand(2:80), rand(2:80)) for _ in 1:250]
+    @testset "pack: default packer, single bin" begin
+        for _ ∈ 1:100
+            p = Packer(max_size=(1024, 1024))
+            b = p.bins[1]
+            rects = [Rect(rand(2:80), rand(2:80)) for _ ∈ 1:250]
             pack(p, rects)
-            # check that bin has a non-zero packing efficiency
+            bin_rect = rect(b)
             @test packing_efficiency(b) > 0
-            # check that bin has every rect placed
             @test b.rects |> length == 250
-            # check that none of the rects intersect any other rects
             @test check_intersections(b) == false
-            # check that all rects are contained in the bin's extents
             @test all(x -> contains(bin_rect, x), b.rects)
         end
     end
-    @testset "pack: default packer, single area-fit bin with border" begin
-        for _ in 1:100
-            b = Bin(1024, 1024, border=8, fit_by=:area)
-            p = Packer([b])
-            bin_rect = b.free_space[1]
-            left_border1 = Rect(8, 1024, 1, 1)
-            left_border2 = Rect(9, 1024, 1, 1)
-            bottom_border1 = Rect(1024, 8, 1, 1)
-            bottom_border2 = Rect(1024, 9, 1, 1)
-            rects = [Rect(rand(2:80), rand(2:80)) for _ in 1:250]
+    @testset "pack: default packer, single bin with padding" begin
+        for _ ∈ 1:100
+            p = Packer(max_size=(1024, 1024), padding=4)
+            b = p.bins[1]
+            rects = [Rect(rand(2:80), rand(2:80)) for _ ∈ 1:250]
             pack(p, rects)
-            # check that bin has a non-zero packing efficiency
+            bin_rect = rect(b)
             @test packing_efficiency(b) > 0
-            # check that bin has every rect placed
             @test b.rects |> length == 250
-            # check that none of the rects intersect any other rects
             @test check_intersections(b) == false
-            # check that all rects are contained in the bin's extents
-            @test all(x -> contains(bin_rect, x), b.rects)
-            # check left/bottom bin edges to not have any rects where a border is
-            @test all(x -> !intersects(left_border1, x), b.rects)
-            @test all(x -> !intersects(bottom_border1, x), b.rects)
-            # check 1 unit to right of left border and above bottom border for at least 1 rect
-            @test any(x -> intersects(left_border2, x), b.rects)
-            @test any(x -> intersects(bottom_border2, x), b.rects)
-        end
-    end
-    @testset "pack: default packer, single edge-fit bin" begin
-        for _ in 1:100
-            b = Bin(1024, 1024, fit_by=:edge)
-            p = Packer([b])
-            bin_rect = b.free_space[1]
-            rects = [Rect(rand(2:80), rand(2:80)) for _ in 1:250]
-            pack(p, rects)
-            # check that bin has a non-zero packing efficiency
-            @test packing_efficiency(b) > 0
-            # check that bin has every rect placed
-            @test b.rects |> length == 250
-            # check that none of the rects intersect any other rects
-            @test check_intersections(b) == false
-            # check that all rects are contained in the bin's extents
             @test all(x -> contains(bin_rect, x), b.rects)
         end
     end
-    @testset "pack: first-fit packer, two area-fit bins" begin
-        for _ in 1:100
-            b1 = Bin(512, 512, fit_by=:area)
-            b2 = Bin(512, 512, fit_by=:area)
-            p = Packer([b1,b2], select_by=:first_fit)
-            bin_rect1 = b1.free_space[1]
-            bin_rect2 = b2.free_space[1]
-            rects = [Rect(rand(2:80), rand(2:80)) for _ in 1:200]
+    @testset "pack: default packer, single bin with border" begin
+        for _ ∈ 1:100
+            p = Packer(max_size=(1024, 1024), border=8)
+            bin = p.bins[1]
+            b = bin.options.border
+            rects = [Rect(rand(2:80), rand(2:80)) for _ ∈ 1:250]
             pack(p, rects)
-            # check that each bin has a non-zero packing efficiency
-            @test packing_efficiency(b1) > 0
-            @test packing_efficiency(b2) > 0
-            # check that each bin has rects
-            @test b1.rects |> length > 0
-            @test b2.rects |> length > 0
-            # check that each bin has no rects intersecting any other rects
-            @test check_intersections(b1) == false
-            @test check_intersections(b2) == false
-            # check that each bin's rects are contained in the bin's extents
-            @test all(x -> contains(bin_rect1, x), b1.rects)
-            @test all(x -> contains(bin_rect2, x), b2.rects)
+            @test packing_efficiency(bin) > 0
+            @test bin.rects |> length == 250
+            @test check_intersections(bin) == false
+            @test all(x -> contains(rect(bin), x), bin.rects)
+            @test all(x -> !intersects(Rect(b, bin.height, 1, 1), x), bin.rects)
+            @test all(x -> !intersects(Rect(bin.width, b, 1, 1), x), bin.rects)
+            @test any(x -> intersects(Rect(b + 1, bin.height, 1, 1), x), bin.rects)
+            @test any(x -> intersects(Rect(bin.width, b + 1, 1, 1), x), bin.rects)
         end
     end
-    @testset "pack: best-fit packer, two edge-fit bins" begin
-        for _ in 1:100
-            b1 = Bin(512, 512, fit_by=:edge)
-            b2 = Bin(512, 512, fit_by=:edge)
-            p = Packer([b1, b2], select_by=:best_fit)
-            bin_rect1 = b1.free_space[1]
-            bin_rect2 = b2.free_space[1]
-            rects = [Rect(rand(2:80), rand(2:80)) for _ in 1:200]
+    @testset "pack: default packer, auto-binning enabled with border" begin
+        for _ ∈ 1:100
+            p = Packer(max_size=(512, 512), border=4, auto_bin=true)
+            rects = [Rect(rand(2:80), rand(2:80)) for _ ∈ 1:200]
             pack(p, rects)
-            # check that each bin has a non-zero packing efficiency
-            @test packing_efficiency(b1) > 0
-            @test packing_efficiency(b2) > 0
-            # check that each bin has rects
-            @test b1.rects |> length > 0
-            @test b2.rects |> length > 0
-            # check that each bin has no rects intersecting any other rects
-            @test check_intersections(b1) == false
-            @test check_intersections(b2) == false
-            # check that each bin's rects are contained in the bin's extents
-            @test all(x -> contains(bin_rect1, x), b1.rects)
-            @test all(x -> contains(bin_rect2, x), b2.rects)
+            for bin ∈ p.bins
+                b = bin.options.border
+                w, h = bin.width, bin.height
+                @test bin.rects |> length > 0
+                @test packing_efficiency(bin) > 0
+                @test check_intersections(bin) == false
+                @test all(x -> contains(rect(bin), x), bin.rects)
+                @test all(x -> !intersects(Rect(b, h, 1, 1), x), bin.rects)
+                @test all(x -> !intersects(Rect(w, b, 1, 1), x), bin.rects)
+                @test any(x -> intersects(Rect(b + 1, h, 1, 1), x), bin.rects)
+                @test any(x -> intersects(Rect(w, b + 1, 1, 1), x), bin.rects)
+            end
+        end
+    end
+    @testset "pack: first-fit packer, auto-binning enabled" begin
+        for _ ∈ 1:100
+            p = Packer(max_size=(512, 512), select_by=:first_fit, padding=1, auto_bin=true)
+            rects = [Rect(rand(2:80), rand(2:80)) for _ ∈ 1:200]
+            pack(p, rects)
+            for bin ∈ p.bins
+                @test bin.rects |> length > 0
+                @test packing_efficiency(bin) > 0
+                @test check_intersections(bin) == false
+                @test all(x -> contains(rect(bin), x), bin.rects)
+            end
+        end
+    end
+    @testset "pack: first-fit packer, auto-binning enabled with padding" begin
+        for _ ∈ 1:100
+            p = Packer(max_size=(512, 512), select_by=:first_fit, padding=1, auto_bin=true)
+            rects = [Rect(rand(2:80), rand(2:80)) for _ ∈ 1:200]
+            pack(p, rects)
+            for bin ∈ p.bins
+                @test bin.rects |> length > 0
+                @test packing_efficiency(bin) > 0
+                @test check_intersections(bin) == false
+                @test all(x -> contains(rect(bin), x), bin.rects)
+            end
+        end
+    end
+    @testset "pack: best-fit packer, auto-binning enabled" begin
+        for _ ∈ 1:100
+            p = Packer(max_size=(512, 512), select_by=:best_fit, auto_bin=true)
+            rects = [Rect(rand(2:80), rand(2:80)) for _ ∈ 1:200]
+            pack(p, rects)
+            for bin ∈ p.bins
+                @test bin.rects |> length > 0
+                @test packing_efficiency(bin) > 0
+                @test check_intersections(bin) == false
+                @test all(x -> contains(rect(bin), x), bin.rects)
+            end
+        end
+    end
+    @testset "pack: best-fit packer, auto-binning enabled with padding" begin
+        for _ ∈ 1:100
+            p = Packer(max_size=(512, 512), select_by=:best_fit, padding=2, auto_bin=true)
+            rects = [Rect(rand(2:80), rand(2:80)) for _ ∈ 1:200]
+            pack(p, rects)
+            for bin ∈ p.bins
+                @test bin.rects |> length > 0
+                @test packing_efficiency(bin) > 0
+                @test check_intersections(bin) == false
+                @test all(x -> contains(rect(bin), x), bin.rects)
+            end
         end
     end
 end
