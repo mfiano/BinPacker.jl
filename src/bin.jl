@@ -1,5 +1,4 @@
 struct BinOptions{F <: FitnessAlgorithm}
-    min_size::NTuple{2, Int}
     max_size::NTuple{2, Int}
     padding::Int
     border::Int
@@ -10,33 +9,22 @@ struct BinOptions{F <: FitnessAlgorithm}
     fit_by::F
 end
 
-function BinOptions(
-    min_size,
-    max_size,
-    padding,
-    border,
-    rotate,
-    resize_by,
-    pow2,
-    square,
-    fit_by::Symbol
-)
+function BinOptions(max_size, padding, border, rotate, resize_by, pow2, square, fit_by::Symbol)
     fit_by = fitness_algorithm_value(Val(fit_by))
-    BinOptions(min_size, max_size, padding, border, rotate, resize_by, pow2, square, fit_by)
+    BinOptions(max_size, padding, border, rotate, resize_by, pow2, square, fit_by)
 end
 
 function BinOptions(;
-    min_size=(128, 128),
     max_size=(4096, 4096),
     padding=0,
     border=0,
     rotate=false,
-    resize_by=(2, 2),
+    resize_by=(1, 1),
     pow2=false,
     square=false,
     fit_by=:area
 )
-    BinOptions(min_size, max_size, padding, border, rotate, resize_by, pow2, square, fit_by)
+    BinOptions(max_size, padding, border, rotate, resize_by, pow2, square, fit_by)
 end
 
 mutable struct Bin{F <: FitnessAlgorithm}
@@ -199,8 +187,6 @@ function resize_bin!(bin::Bin, rect::Rect)
         end
     end
     w, h = ((a, b) -> a + mod(-a, b)).((w, h), bin.options.resize_by)
-    min_size = bin.options.min_size
-    w, h = max.((w, h), min_size)
     if bin.options.pow2
         w, h = nextpow.(2, (w, h))
     end

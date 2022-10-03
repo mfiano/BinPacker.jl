@@ -53,5 +53,13 @@ abstract type BinSelectionAlgorithm end
 struct SelectFirstFit <: BinSelectionAlgorithm end
 struct SelectBestFit <: BinSelectionAlgorithm end
 
-@inline bin_selection_algorithm_value(::Val{:first_fit}) = SelectFirstFit()
-@inline bin_selection_algorithm_value(::Val{:best_fit}) = SelectBestFit()
+bin_selection_algorithm_value(::Val{:first_fit}) = SelectFirstFit()
+bin_selection_algorithm_value(::Val{:best_fit}) = SelectBestFit()
+
+abstract type BinPolicyAlgorithm end
+
+struct AutoResizeBin <: BinPolicyAlgorithm end
+struct AutoCreateBin <: BinPolicyAlgorithm end
+
+bin_policy_algorithm_value(::Val{:resize}) = AutoResizeBin()
+bin_policy_algorithm_value(::Val{:create}) = AutoCreateBin()

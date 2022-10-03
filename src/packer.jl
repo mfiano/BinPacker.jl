@@ -1,9 +1,14 @@
-struct Packer{F <: FitnessAlgorithm, S <: SortingAlgorithm, B <: BinSelectionAlgorithm}
+struct Packer{
+    F <: FitnessAlgorithm,
+    S <: SortingAlgorithm,
+    B <: BinSelectionAlgorithm,
+    P <: BinPolicyAlgorithm
+}
     bins::Vector{Bin{F}}
     bin_options::BinOptions{F}
+    bin_policy::P
     sort_by::S
     select_by::B
-    auto_bin::Bool
 end
 
 function Base.show(io::IO, obj::Packer)
@@ -13,27 +18,46 @@ function Base.show(io::IO, obj::Packer)
     print(io, "$type(:rects => $rect_count, :bins => $bin_count)")
 end
 
+function validate_option(::Val{:size}, option, value)
+    if !(value isa NTuple{2, Int}) || !all(x -> x > 0, value)
+        throw(ArgumentError("$option must be a Tuple of 2 positive Int values"))
+    end
+end
+
+function validate_option(::Val{:non_negative_int}, option, value)
+    if !(value isa Int) || value < 0
+        throw(ArgumentError("$option must be a non-negative Int value"))
+    end
+end
+
 function Packer(;
     sort_by=:perimeter,
     fit_by=:area,
     select_by=:first_fit,
-    min_size=(128, 128),
-    max_size=(4096, 4096),
+    bin_size=(4096, 4096),
     padding=0,
     border=0,
     rotate=false,
-    resize_by=(2, 2),
+    resize_by=(1, 1),
     pow2=false,
     square=false,
-    auto_bin=false
+    bin_policy=:resize
 )
+    validate_option(Val(:size), :bin_size, bin_size)
+    validate_option(Val(:non_negative_int), :padding, padding)
+    validate_option(Val(:non_negative_int), :border, border)
+    validate_option(Val(:size), :resize_by, resize_by)
     sort_by = sorting_algorithm_value(Val(sort_by))
     select_by = bin_selection_algorithm_value(Val(select_by))
-    bin_options =
-        BinOptions(min_size, max_size, padding, border, rotate, resize_by, pow2, square, fit_by)
-    default_bin_size = (1, 1) .+ padding .+ 2border
+    bin_policy = bin_policy_algorithm_value(Val(bin_policy))
+    bin_options = BinOptions(bin_size, padding, border, rotate, resize_by, pow2, square, fit_by)
+    if bin_policy ≡ AutoResizeBin()
+        default_bin_size = (1, 1) .+ padding .+ 2border
+    elseif bin_policy ≡ AutoCreateBin()
+        default_bin_size = bin_size
+    end
     default_bin = Bin(default_bin_size..., bin_options)
-    Packer([default_bin], bin_options, sort_by, select_by, auto_bin)
+    Packer([default_bin], bin_options, bin_policy, sort_by, select_by)
 end
 
 function has_resized_bin(packer, w, h)
@@ -41,33 +65,33 @@ function has_resized_bin(packer, w, h)
     bin = packer.bins[bin_index]
     p = bin.options.padding
     b = bin.options.border
-    (w, h) = (w, h) .+ p
-    (x, y) = (bin.width, bin.height) .+ p .- b
+    w, h = (w, h) .+ p
+    x, y = (bin.width, bin.height) .+ p .- b
     if bin.width > bin.height
-        return (resize_bin!(bin, Rect(w, h, b + 1, y)) || resize_bin!(bin, Rect(w, h, x, b + 1)))
+        resize_bin!(bin, Rect(w, h, b + 1, y)) || resize_bin!(bin, Rect(w, h, x, b + 1))
     else
-        return (resize_bin!(bin, Rect(w, h, x, b + 1)) || resize_bin!(bin, Rect(w, h, b + 1, y)))
+        resize_bin!(bin, Rect(w, h, x, b + 1)) || resize_bin!(bin, Rect(w, h, b + 1, y))
     end
-    false
 end
 
 function select_bin(packer::Packer, rect::Rect)
     index = select_bin(packer, rect, packer.select_by)
     if iszero(index)
-        if has_resized_bin(packer, rect.w, rect.h)
-            return select_bin(packer, rect)
-        end
-        if packer.auto_bin
+        policy = packer.bin_policy
+        if policy ≡ AutoResizeBin() && has_resized_bin(packer, rect.w, rect.h)
+            select_bin(packer, rect)
+        elseif policy ≡ AutoCreateBin()
             options = packer.bin_options
-            p = options.padding + 1
-            bin = Bin(rect.w + p, rect.h + p, options)
+            bin_size = options.max_size
+            bin = Bin(bin_size..., options)
             push!(packer.bins, bin)
-            return select_bin(packer, rect)
+            select_bin(packer, rect)
         else
             error("Cannot pack anymore rectangles")
         end
+    else
+        packer.bins[index]
     end
-    packer.bins[index]
 end
 
 function select_bin(packer::Packer, rect::Rect, ::SelectFirstFit)
