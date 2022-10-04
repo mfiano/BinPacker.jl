@@ -201,6 +201,18 @@ function resize_bin!(bin::Bin, rect::Rect)
     true
 end
 
+function resize_bin!(bin::Bin, w, h)
+    p = bin.options.padding
+    b = bin.options.border
+    w, h = (w, h) .+ p
+    x, y = (bin.width, bin.height) .+ p .- b
+    if bin.width > bin.height
+        resize_bin!(bin, Rect(w, h, b + 1, y)) || resize_bin!(bin, Rect(w, h, x, b + 1))
+    else
+        resize_bin!(bin, Rect(w, h, x, b + 1)) || resize_bin!(bin, Rect(w, h, b + 1, y))
+    end
+end
+
 function expand_free_space!(bin::Bin, w, h)
     p = bin.options.padding
     b = bin.options.border

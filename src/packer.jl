@@ -60,35 +60,25 @@ function Packer(;
     Packer([default_bin], bin_options, bin_policy, sort_by, select_by)
 end
 
-function has_resized_bin(packer, w, h)
-    _, bin_index = findmin(area, packer.bins)
-    bin = packer.bins[bin_index]
-    p = bin.options.padding
-    b = bin.options.border
-    w, h = (w, h) .+ p
-    x, y = (bin.width, bin.height) .+ p .- b
-    if bin.width > bin.height
-        resize_bin!(bin, Rect(w, h, b + 1, y)) || resize_bin!(bin, Rect(w, h, x, b + 1))
+function handle_unfittable(::AutoResizeBin, packer, rect)
+    if resize_bin!(packer.bins[1], rect.w, rect.h)
+        select_bin(packer, rect)
     else
-        resize_bin!(bin, Rect(w, h, x, b + 1)) || resize_bin!(bin, Rect(w, h, b + 1, y))
+        error("Cannot pack anymore rectangles")
     end
+end
+
+function handle_unfittable(::AutoCreateBin, packer, rect)
+    options = packer.bin_options
+    push!(packer.bins, Bin(options.max_size..., options))
+    select_bin(packer, rect)
 end
 
 function select_bin(packer::Packer, rect::Rect)
     index = select_bin(packer, rect, packer.select_by)
     if iszero(index)
         policy = packer.bin_policy
-        if policy ≡ AutoResizeBin() && has_resized_bin(packer, rect.w, rect.h)
-            select_bin(packer, rect)
-        elseif policy ≡ AutoCreateBin()
-            options = packer.bin_options
-            bin_size = options.max_size
-            bin = Bin(bin_size..., options)
-            push!(packer.bins, bin)
-            select_bin(packer, rect)
-        else
-            error("Cannot pack anymore rectangles")
-        end
+        handle_unfittable(policy, packer, rect)
     else
         packer.bins[index]
     end
