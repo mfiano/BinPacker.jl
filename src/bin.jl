@@ -67,7 +67,7 @@ function find_free_space(bin::Bin, rect::Rect)
     free_space = bin.free_space
     rotate = bin.options.rotate
     fit_by = bin.options.fit_by
-    total_score = typemax(Int32)
+    best_score = typemax(Int32)
     best = nothing
     target = bin.target
     target.w, target.h = (rect.w, rect.h) .+ bin.options.padding
@@ -75,9 +75,9 @@ function find_free_space(bin::Bin, rect::Rect)
     for free ∈ free_space
         if free.w ≥ target.w && free.h ≥ target.h
             score = fitness(free, target, fit_by)
-            if score < total_score
+            if score < best_score
                 best = free.x, free.y, false
-                total_score = score
+                best_score = score
             end
         end
         if rotate
@@ -85,16 +85,16 @@ function find_free_space(bin::Bin, rect::Rect)
                 target.w, target.h = target.h, target.w
                 score = fitness(free, target, fit_by)
                 target.h, target.w = target.w, target.h
-                if score < total_score
+                if score < best_score
                     best = free.x, free.y, true
-                    total_score = score
+                    best_score = score
                 end
             end
         end
     end
     if !isnothing(best)
         target.x, target.y, target.rotated = best
-        true, total_score
+        true, best_score
     else
         false, typemax(Int32)
     end
