@@ -133,7 +133,7 @@ end
 @testset "Packer" begin
     @testset "Properties" begin
         p1 = Packer()
-        p2 = Packer(bin_size=(1024, 1024), sort_by=:longest_edge, select_by=:best_fit)
+        p2 = Packer(bin_size=(1024, 1024), sort_by=:longest_edge, select_by=:best)
         @test p1.bins |> length == 1
         @test p1.sort_by == SortByPerimeter()
         @test p1.select_by == SelectFirstFit()
@@ -218,7 +218,7 @@ end
     end
     @testset "pack: auto-create new bins, select best fit bin" begin
         for _ ∈ 1:100
-            p = Packer(bin_size=(512, 512), select_by=:best_fit, bin_policy=:create)
+            p = Packer(bin_size=(512, 512), select_by=:best, bin_policy=:create)
             rects = [Rect(rand(2:80), rand(2:80)) for _ ∈ 1:200]
             pack(p, rects)
             for bin ∈ p.bins
@@ -231,7 +231,7 @@ end
     end
     @testset "pack: auto-create new bins with padding, select best fit bin" begin
         for _ ∈ 1:100
-            p = Packer(bin_size=(512, 512), select_by=:best_fit, padding=2, bin_policy=:create)
+            p = Packer(bin_size=(512, 512), select_by=:best, padding=2, bin_policy=:create)
             rects = [Rect(rand(2:80), rand(2:80)) for _ ∈ 1:200]
             pack(p, rects)
             for bin ∈ p.bins

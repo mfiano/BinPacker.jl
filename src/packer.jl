@@ -33,7 +33,7 @@ end
 function Packer(;
     sort_by=:perimeter,
     fit_by=:area,
-    select_by=:first_fit,
+    select_by=:first,
     bin_size=(4096, 4096),
     padding=0,
     border=0,
@@ -52,11 +52,11 @@ function Packer(;
     bin_policy = bin_policy_algorithm_value(Val(bin_policy))
     bin_options = BinOptions(bin_size, padding, border, rotate, resize_by, pow2, square, fit_by)
     if bin_policy ≡ AutoResizeBin()
-        default_bin_size = (1, 1) .+ padding .+ 2border
+        bin_size = (1, 1) .+ padding .+ 2border
     elseif bin_policy ≡ AutoCreateBin()
-        default_bin_size = bin_size
+        bin_size = bin_size
     end
-    default_bin = Bin(default_bin_size..., bin_options)
+    default_bin = Bin(bin_size..., bin_options)
     Packer([default_bin], bin_options, bin_policy, sort_by, select_by)
 end
 
@@ -76,18 +76,12 @@ end
 
 function select_bin(packer::Packer, rect::Rect)
     index = select_bin(packer, rect, packer.select_by)
-    if iszero(index)
-        policy = packer.bin_policy
-        handle_unfittable(policy, packer, rect)
-    else
-        packer.bins[index]
-    end
+    iszero(index) ? handle_unfittable(packer.bin_policy, packer, rect) : packer.bins[index]
 end
 
 function select_bin(packer::Packer, rect::Rect, ::SelectFirstFit)
     index = findfirst(packer.bins) do bin
-        fits, _ = find_free_space(bin, rect)
-        fits
+        find_free_space(bin, rect) ≢ typemax(Int32)
     end
     !isnothing(index) ? index : 0
 end
@@ -96,8 +90,8 @@ function select_bin(packer::Packer, rect::Rect, ::SelectBestFit)
     best = typemax(Int32)
     index = 0
     for (i, bin) ∈ pairs(packer.bins)
-        fits, score = find_free_space(bin, rect)
-        if fits && score < best
+        score = find_free_space(bin, rect)
+        if score < best
             best = score
             index = i
         end

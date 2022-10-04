@@ -17,8 +17,7 @@ end
 
 function Bin(width, height, options)
     border = options.border
-    padding = options.padding
-    free_size = (width, height) .- (2border - padding)
+    free_size = (width, height) .- (2border - options.padding)
     free_origin = (border + 1, border + 1)
     free = Rect(free_size..., free_origin...)
     Bin(width, height, Rect[free], Rect(0, 0), Rect[], options)
@@ -27,15 +26,12 @@ end
 @inline area(bin::Bin) = bin.width * bin.height
 
 @inline function rect(bin::Bin)
-    p = bin.options.padding
     b = bin.options.border
-    size = (bin.width, bin.height) .- (2b - p)
-    origin = (b + 1, b + 1)
-    Rect(size..., origin...)
+    size = (bin.width, bin.height) .- (2b - bin.options.padding)
+    Rect(size..., b + 1, b + 1)
 end
 
 function find_free_space(bin::Bin, rect::Rect)
-    free_space = bin.free_space
     rotate = bin.options.rotate
     fit_by = bin.options.fit_by
     best_score = typemax(Int32)
@@ -43,7 +39,7 @@ function find_free_space(bin::Bin, rect::Rect)
     target = bin.target
     target.w, target.h = (rect.w, rect.h) .+ bin.options.padding
     target.x, target.y = rect.x, rect.y
-    for free ∈ free_space
+    for free ∈ bin.free_space
         if free.w ≥ target.w && free.h ≥ target.h
             score = fitness(free, target, fit_by)
             if score < best_score
@@ -65,10 +61,8 @@ function find_free_space(bin::Bin, rect::Rect)
     end
     if !isnothing(best)
         target.x, target.y, target.rotated = best
-        true, best_score
-    else
-        false, typemax(Int32)
     end
+    best_score
 end
 
 function partition_free_space(bin::Bin)
@@ -87,7 +81,8 @@ function partition_free_space(bin::Bin)
             push!(new, r1)
         end
     end
-    old, new
+    copy!(bin.free_space, old)
+    new
 end
 
 function clean_free_space!(free_space)
@@ -96,7 +91,7 @@ function clean_free_space!(free_space)
     while i < len
         j = i + 1
         r1 = free_space[i]
-        while j <= len
+        while j < len
             r2 = free_space[j]
             if contains(r2, r1)
                 deleteat!(free_space, i)
@@ -116,8 +111,7 @@ function clean_free_space!(free_space)
 end
 
 function prune_free_space!(bin::Bin)
-    old, new = partition_free_space(bin)
-    copy!(bin.free_space, old)
+    new = partition_free_space(bin)
     clean_free_space!(new)
     append!(bin.free_space, new)
     nothing

@@ -1,4 +1,5 @@
 mutable struct Rect
+    id::Int
     w::Int32
     h::Int32
     x::Int32
@@ -9,10 +10,10 @@ end
 function Base.show(io::IO, obj::Rect)
     (; w, h, x, y) = obj
     type = obj |> typeof
-    print(io, "$w×$h $type(:x => $x, :y => $y)")
+    print(io, "$w×$h $type($x, $y)")
 end
 
-@inline Rect(w, h, x=1, y=1) = Rect(w, h, x, y, false)
+@inline Rect(w, h, x=1, y=1, id=0) = Rect(id, w, h, x, y, false)
 
 @inline function Base.getproperty(rect::Rect, name::Symbol)
     if name ≡ :l

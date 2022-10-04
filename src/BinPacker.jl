@@ -2,7 +2,7 @@ module BinPacker
 
 using Random: shuffle!
 
-export Bin, Packer, Rect, pack
+export Packer, Rect, pack
 
 include("algorithm_types.jl")
 include("rect.jl")
