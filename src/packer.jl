@@ -106,10 +106,8 @@ function select_bin(packer::Packer, rect::Rect, ::SelectBestFit)
 end
 
 function pack(packer::Packer, rects)
-    isempty(packer.bins) && error("Packer has no bins")
-    sort_by = packer.sort_by
-    rects = deepcopy(rects)
-    foreach(sort_rects(rects, sort_by)) do rect
+    sort_rects!(rects, packer.sort_by)
+    foreach(rects) do rect
         bin = select_bin(packer, rect)
         place_rect!(bin, rect)
     end
